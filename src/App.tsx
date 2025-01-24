@@ -9,6 +9,7 @@ import AgentEventDetail from './pages/AgentEventDetail';
 import LineDetails from './pages/LineDetails';
 import LineRecharge from './pages/LineRecharge';
 import Checkout from './pages/Checkout';
+import PaymentSuccess from './pages/PaymentSuccess';
 import PlanChange from './pages/PlanChange';
 import DeviceDetail from './pages/DeviceDetail';
 import InitialScreen from './pages/home';
@@ -16,12 +17,10 @@ import Authorization from './pages/Authorization';
 import FAQ from './pages/FAQ';
 import { AgentSettingsProvider } from './contexts/AgentSettingsContext';
 
-// Definición del tipo para los props del layout
 interface LayoutProps {
-  children: ReactNode; // El contenido renderizado dentro del layout
+  children: ReactNode;
 }
 
-// Layout para las rutas con Sidebar
 const LayoutWithSidebar: React.FC<LayoutProps> = ({ children }) => (
   <div className="min-h-screen bg-gray-50">
     <Sidebar />
@@ -29,7 +28,6 @@ const LayoutWithSidebar: React.FC<LayoutProps> = ({ children }) => (
   </div>
 );
 
-// Layout para las rutas sin Sidebar
 const LayoutWithoutSidebar: React.FC<LayoutProps> = ({ children }) => (
   <div className="min-h-screen bg-gray-50">
     <div>{children}</div>
@@ -56,6 +54,14 @@ const App: React.FC = () => {
               element={
                 <LayoutWithoutSidebar>
                   <Authorization />
+                </LayoutWithoutSidebar>
+              }
+            />
+            <Route
+              path="/payment-success"
+              element={
+                <LayoutWithoutSidebar>
+                  <PaymentSuccess />
                 </LayoutWithoutSidebar>
               }
             />

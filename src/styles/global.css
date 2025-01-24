@@ -55,4 +55,17 @@
     border-color: var(--brand-color);
     ring-color: var(--brand-color);
   }
+
+  .card-brand {
+    display: inline-flex; /* Alinea el contenido horizontalmente */
+    align-items: center; /* Centra verticalmente */
+    padding: 0 8px; /* Padding uniforme horizontal (ajusta según sea necesario) */
+    height: 32px; /* Altura consistente */
+    background-color: #f4f4f4; /* Fondo gris claro */
+    border-radius: 4px; /* Bordes redondeados */
+    font-size: 0.875rem; /* Texto más pequeño (14px) */
+    font-weight: bold; /* Negrita para visibilidad */
+    text-transform: capitalize; /* Capitaliza el texto */
+    white-space: nowrap; /* Evita que el texto se divida en múltiples líneas */
+  }
 }

@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import type { Stripe, StripeElements } from '@stripe/stripe-js';
-import { createSetupIntent } from '../../api/stripe';
+import { createPaymentIntent } from '../../api/stripe';
 
-const stripePromise = loadStripe('pk_test_51OwVCMP0vcGwtLuhGdutUMyH17TadjAIE0xOf7hXzCEMuH1t3RvcaSxN1C1vZYuT5nY0FvGQcXPGUryU265rFkR200OAwaU7cr');
+const stripePromise = loadStripe('pk_test_51OwVCMP0vcGwtLuhyUX1Snlu5k0ZxrnQxNEoU9Ce1s5jxwdKsHhrWhOx6kBecbMJXSm8nry0ZQze2v8XTDmrib8g00WpgceRMu');
 
 interface AddCardFormProps {
   onSuccess: (paymentMethodId: string) => void;
+  amount: number;
 }
 
-const AddCardForm: React.FC<AddCardFormProps> = ({ onSuccess }) => {
+const AddCardForm: React.FC<AddCardFormProps> = ({ onSuccess, amount }) => {
   const [stripe, setStripe] = useState<Stripe | null>(null);
   const [elements, setElements] = useState<StripeElements | null>(null);
   const [loading, setLoading] = useState(false);
@@ -18,7 +19,7 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onSuccess }) => {
   useEffect(() => {
     const initializeStripe = async () => {
       try {
-        const { clientSecret } = await createSetupIntent();
+        const { clientSecret } = await createPaymentIntent();
         
         const stripe = await stripePromise;
         if (!stripe) throw new Error('Failed to load Stripe');
@@ -52,7 +53,6 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onSuccess }) => {
 
     initializeStripe();
 
-    // Cleanup function
     return () => {
       if (elements) {
         elements.getElement('payment')?.unmount();
@@ -68,18 +68,20 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onSuccess }) => {
     setError(null);
 
     try {
-      const { setupIntent, error } = await stripe.confirmSetup({
+      const { paymentIntent, error } = await stripe.confirmPayment({
         elements,
-        redirect: 'if_required',
+        confirmParams: {
+          return_url: window.location.origin + '/payment-success',
+        },
       });
 
       if (error) {
-        setError(error.message || 'Error al agregar la tarjeta');
+        setError(error.message || 'Error al procesar el pago');
         return;
       }
 
-      if (setupIntent.payment_method) {
-        onSuccess(setupIntent.payment_method);
+      if (paymentIntent.status === 'succeeded') {
+        onSuccess(paymentIntent.payment_method as string);
       }
     } catch (err) {
       setError('Ocurrió un error inesperado');
@@ -104,7 +106,7 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onSuccess }) => {
         disabled={!stripe || loading}
         className="w-full py-3 bg-brand text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base font-medium"
       >
-        {loading ? 'Procesando...' : 'Agregar tarjeta'}
+        {loading ? 'Procesando...' : `Pagar $${amount.toFixed(2)} MXN`}
       </button>
     </form>
   );
