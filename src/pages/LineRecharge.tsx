@@ -4,6 +4,7 @@ import { ArrowLeft, Filter } from 'lucide-react';
 import { cn } from '../utils/cn';
 import Header from '../components/Header';
 import RechargeOption from '../components/Recharge/RechargeOption';
+import { useUser } from '../contexts/UserContext';
 
 interface RechargePackage {
   id: string;
@@ -38,6 +39,7 @@ const PACKAGE_COLORS: { [key: string]: string } = {
 const LineRecharge: React.FC = () => {
   const { number } = useParams();
   const navigate = useNavigate();
+  const { userInfo } = useUser();
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | '7' | '15' | '30'>('all');
   const [packages, setPackages] = useState<RechargePackage[]>([]);
@@ -47,9 +49,14 @@ const LineRecharge: React.FC = () => {
   useEffect(() => {
     const fetchPackages = async () => {
       try {
+        const sessionToken = localStorage.getItem('sessionToken');
+        if (!sessionToken) {
+          throw new Error('No session token found');
+        }
+
         const response = await fetch("https://devapi.mirlo.mx/api/v1/client/network-provider-line/offers?limit=999", {
           headers: {
-            "Authorization": "Bearer eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwiaXNzIjoiaHR0cHM6Ly9hdXRoLm1pcmxvLm14LyJ9..dzaBNWhbQrgiyost.7n0diYuB_P686gwR-d7hfBrI0OmW3y6LYmV3cn8U7c1VaIEzsVV-U1YU3zeICazbXOXcefmYtVL5iDyt6dJ030ZG-VUgQhoCCiyA49WEBdNiQis-J6f_r7Zx1vD7Y46PgbdJl3iYc8aRzII0U70ZavIiKYJmRDshZISxUW9qzFlJDOESFiak3S4SrLQ9Yk3RvgNXmP7WXen12SShCkSQzfgv_0NwyX2EgJp3CdwATu_55c_0DN1Mm-Cnn04rf0NmtclPm805o88-NtI6ezBP84Jlew-ViHFUKeBj-5FKV4HJCinyWd-90SXLOWV8MCo5OHCFtll4-qad4xycAhNZLz_uDXlaUwRaR7WvvJe5q6Sz1lQvJtAYEMJGYPs2bMm9QdkdfMg.f9MLxB_i39TSmwbxsFu8mg"
+            "Authorization": `Bearer ${sessionToken}`
           }
         });
 
