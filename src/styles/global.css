@@ -1,0 +1,58 @@
+@import './variables.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-family);
+    color: var(--text-color);
+  }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg transition-colors duration-200 font-medium;
+  }
+
+  .btn-primary {
+    background-color: var(--primary-button-color);
+    color: var(--primary-button-text-color);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--primary-button-color-on-hover);
+  }
+
+  .btn-secondary {
+    background-color: var(--secondary-button-color);
+    color: var(--secondary-button-text-color);
+    border: 1px solid var(--border-color);
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--secondary-button-color-on-hover);
+  }
+
+  .input {
+    @apply w-full px-4 py-2 rounded-lg border transition-colors duration-200;
+    border-color: var(--border-color);
+    font-family: var(--font-family);
+  }
+
+  .input:focus {
+    @apply outline-none ring-2;
+    border-color: var(--brand-color);
+    ring-color: var(--brand-color);
+  }
+}
