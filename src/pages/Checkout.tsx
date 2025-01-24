@@ -13,16 +13,50 @@ interface PaymentMethod {
 const Checkout: React.FC = () => {
   const { number, packageId } = useParams();
   const navigate = useNavigate();
-
   const [selectedCard, setSelectedCard] = useState<string>('');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [showAddCard, setShowAddCard] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [packageData, setPackageData] = useState<any>(null);
 
   const stripeApiKey =
     'sk_test_51OwVCMP0vcGwtLuhGdutUMyH17TadjAIE0xOf7hXzCEMuH1t3RvcaSxN1C1vZYuT5nY0FvGQcXPGUryU265rFkR200OAwaU7cr';
   const customerId = 'cus_RbYg6e15XWd2CA';
+
+  useEffect(() => {
+    // Fetch package data from the API
+    const fetchPackageData = async () => {
+      try {
+        const response = await fetch("https://devapi.mirlo.mx/api/v1/client/network-provider-line/offers?limit=999", {
+          headers: {
+            "Authorization": "Bearer eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwiaXNzIjoiaHR0cHM6Ly9hdXRoLm1pcmxvLm14LyJ9..dzaBNWhbQrgiyost.7n0diYuB_P686gwR-d7hfBrI0OmW3y6LYmV3cn8U7c1VaIEzsVV-U1YU3zeICazbXOXcefmYtVL5iDyt6dJ030ZG-VUgQhoCCiyA49WEBdNiQis-J6f_r7Zx1vD7Y46PgbdJl3iYc8aRzII0U70ZavIiKYJmRDshZISxUW9qzFlJDOESFiak3S4SrLQ9Yk3RvgNXmP7WXen12SShCkSQzfgv_0NwyX2EgJp3CdwATu_55c_0DN1Mm-Cnn04rf0NmtclPm805o88-NtI6ezBP84Jlew-ViHFUKeBj-5FKV4HJCinyWd-90SXLOWV8MCo5OHCFtll4-qad4xycAhNZLz_uDXlaUwRaR7WvvJe5q6Sz1lQvJtAYEMJGYPs2bMm9QdkdfMg.f9MLxB_i39TSmwbxsFu8mg"
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch package data');
+
+        const data = await response.json();
+        const selectedPackage = data.data.items.find((pkg: any) => pkg.id === packageId);
+        
+        if (selectedPackage) {
+          setPackageData({
+            ...selectedPackage,
+            data: 5,
+            days: 15,
+            minutes: 200,
+            sms: 100,
+            price: selectedPackage.mirloFinalPrice
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching package data:', err);
+        setError('Error loading package information');
+      }
+    };
+
+    fetchPackageData();
+  }, [packageId]);
 
   useEffect(() => {
     const fetchPaymentMethods = async () => {
@@ -70,14 +104,6 @@ const Checkout: React.FC = () => {
   const handleShowAddCard = () => {
     setShowAddCard(true);
     setSelectedCard('');
-  };
-
-  const packageData = {
-    data: 5,
-    days: 15,
-    minutes: 200,
-    sms: 100,
-    price: 199,
   };
 
   const handlePayment = async () => {
@@ -187,7 +213,7 @@ const Checkout: React.FC = () => {
 
             {showAddCard && (
               <div className="mt-6">
-                <AddCardForm onSuccess={handleAddCard} amount={packageData.price} />
+                <AddCardForm onSuccess={handleAddCard} amount={packageData?.price} />
               </div>
             )}
           </div>
@@ -200,37 +226,39 @@ const Checkout: React.FC = () => {
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Recarga de {packageData.data}GB</p>
+                  <p className="font-medium">{packageData?.name || 'Cargando...'}</p>
                   <p className="text-sm text-gray-600">Número: {number}</p>
                 </div>
-                <span className="font-medium">${packageData.price} MXN</span>
+                <span className="font-medium">${packageData?.mirloFinalPrice.toFixed(2)} MXN</span>
               </div>
 
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Datos</span>
-                  <span className="font-medium">{packageData.data}GB</span>
+              {packageData && (
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">Datos</span>
+                    <span className="font-medium">{packageData.data}GB</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">Minutos</span>
+                    <span className="font-medium">{packageData.minutes}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">SMS</span>
+                    <span className="font-medium">{packageData.sms}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Vigencia</span>
+                    <span className="font-medium">{packageData.days} días</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Minutos</span>
-                  <span className="font-medium">{packageData.minutes}</span>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">SMS</span>
-                  <span className="font-medium">{packageData.sms}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Vigencia</span>
-                  <span className="font-medium">{packageData.days} días</span>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-4">
                 <span className="font-medium">Total a pagar</span>
                 <span className="text-xl font-semibold">
-                  ${packageData.price} MXN
+                  ${packageData?.mirloFinalPrice.toFixed(2)} MXN
                 </span>
               </div>
 

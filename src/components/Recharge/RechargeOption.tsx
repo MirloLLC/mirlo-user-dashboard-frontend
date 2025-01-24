@@ -3,6 +3,7 @@ import { Phone, MessageSquare, CreditCard, Zap, Check } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface RechargeOptionProps {
+  name: string; // Add name prop
   data: number;
   days: number;
   minutes: number;
@@ -16,6 +17,7 @@ interface RechargeOptionProps {
 }
 
 const RechargeOption: React.FC<RechargeOptionProps> = ({
+  name,
   data,
   days,
   minutes,
@@ -47,7 +49,7 @@ const RechargeOption: React.FC<RechargeOptionProps> = ({
       
       <div className="mb-3">
         <h3 className="text-lg font-semibold" style={{ color }}>
-          {data} GB - {days} días
+          {name} {/* Show the name from the API */}
         </h3>
         {savings && (
           <span className="text-xs text-green-600 font-medium">
