@@ -1,87 +1,102 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Filter } from 'lucide-react';
 import { cn } from '../utils/cn';
 import Header from '../components/Header';
 import RechargeOption from '../components/Recharge/RechargeOption';
+import { useUser } from '../contexts/UserContext';
 
 interface RechargePackage {
-  id: number;
+  id: string;
+  name: string;
+  altanOfferId: string;
+  mirloFinalPrice: number;
   data: number;
   days: number;
   minutes: number;
   sms: number;
-  price: number;
   color: string;
   isBestValue?: boolean;
   savings?: number;
 }
 
+const VALID_OFFER_IDS = [
+  "1809904534",
+  "1809904535",
+  "1809904537",
+  "1809904536",
+  "1809904538"
+];
+
+const PACKAGE_COLORS: { [key: string]: string } = {
+  "1809904534": "#339999",
+  "1809904535": "#4B5563",
+  "1809904537": "#FF5C1C",
+  "1809904536": "#6366f1",
+  "1809904538": "#059669",
+};
+
 const LineRecharge: React.FC = () => {
   const { number } = useParams();
   const navigate = useNavigate();
-  const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
+  const { userInfo } = useUser();
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | '7' | '15' | '30'>('all');
+  const [packages, setPackages] = useState<RechargePackage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const packages: RechargePackage[] = [
-    {
-      id: 1,
-      data: 2,
-      days: 7,
-      minutes: 100,
-      sms: 50,
-      price: 79,
-      color: '#339999',
-    },
-    {
-      id: 2,
-      data: 3,
-      days: 7,
-      minutes: 150,
-      sms: 75,
-      price: 99,
-      color: '#4B5563',
-    },
-    {
-      id: 3,
-      data: 5,
-      days: 15,
-      minutes: 200,
-      sms: 100,
-      price: 199,
-      color: '#FF5C1C',
-      isBestValue: true,
-      savings: 15,
-    },
-    {
-      id: 4,
-      data: 8,
-      days: 15,
-      minutes: 250,
-      sms: 125,
-      price: 249,
-      color: '#6366f1',
-    },
-    {
-      id: 5,
-      data: 10,
-      days: 30,
-      minutes: 350,
-      sms: 150,
-      price: 299,
-      color: '#059669',
-    },
-    {
-      id: 6,
-      data: 15,
-      days: 30,
-      minutes: 500,
-      sms: 200,
-      price: 399,
-      color: '#7C3AED',
-      savings: 10,
-    }
-  ];
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const sessionToken = localStorage.getItem('sessionToken');
+        if (!sessionToken) {
+          throw new Error('No session token found');
+        }
+
+        const response = await fetch("https://devapi.mirlo.mx/api/v1/client/network-provider-line/offers?limit=999", {
+          headers: {
+            "Authorization": `Bearer ${sessionToken}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch packages');
+        }
+
+        const responseData = await response.json();
+        
+        // Filter and transform the packages
+        const filteredPackages = responseData.data.items
+          .filter((pkg: any) => VALID_OFFER_IDS.includes(pkg.altanOfferId))
+          .map((pkg: any) => ({
+            id: pkg.id,
+            name: pkg.name,
+            altanOfferId: pkg.altanOfferId,
+            mirloFinalPrice: pkg.mirloFinalPrice,
+            data: 5, // Static values as per current implementation
+            days: pkg.altanOfferId === "1809904534" ? 7 : 
+                  pkg.altanOfferId === "1809904535" ? 7 : 
+                  pkg.altanOfferId === "1809904537" ? 15 :
+                  pkg.altanOfferId === "1809904536" ? 15 : 30,
+            minutes: 200,
+            sms: 100,
+            color: PACKAGE_COLORS[pkg.altanOfferId],
+            isBestValue: pkg.altanOfferId === "1809904537",
+            savings: pkg.altanOfferId === "1809904537" ? 15 : undefined
+          }));
+
+        setPackages(filteredPackages);
+      } catch (err) {
+        setError('Error loading packages. Please try again later.');
+        console.error('Error fetching packages:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPackages();
+  }, []);
 
   const filteredPackages = packages.filter(pkg => 
     filter === 'all' || pkg.days.toString() === filter
@@ -94,6 +109,26 @@ const LineRecharge: React.FC = () => {
       navigate(`/checkout/${number}/${selectedPackage}`);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="lg:ml-64 p-4 md:p-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="lg:ml-64 p-4 md:p-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lg:ml-64 p-4 md:p-8">
@@ -137,11 +172,12 @@ const LineRecharge: React.FC = () => {
           {filteredPackages.map((pkg) => (
             <RechargeOption
               key={pkg.id}
+              name={pkg.name}
               data={pkg.data}
               days={pkg.days}
               minutes={pkg.minutes}
               sms={pkg.sms}
-              price={pkg.price}
+              price={pkg.mirloFinalPrice}
               color={pkg.color}
               selected={selectedPackage === pkg.id}
               onSelect={() => setSelectedPackage(pkg.id)}
@@ -155,7 +191,7 @@ const LineRecharge: React.FC = () => {
           <div className="mt-8 flex justify-between items-center border-t pt-6">
             <div>
               <p className="text-sm text-gray-600">Total a pagar</p>
-              <p className="text-2xl font-semibold">${selectedPkg.price} MXN</p>
+              <p className="text-2xl font-semibold">${selectedPkg.mirloFinalPrice} MXN</p>
             </div>
             <button
               onClick={handleProceedToCheckout}

@@ -13,16 +13,68 @@ interface PaymentMethod {
 const Checkout: React.FC = () => {
   const { number, packageId } = useParams();
   const navigate = useNavigate();
-
   const [selectedCard, setSelectedCard] = useState<string>('');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [showAddCard, setShowAddCard] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [packageData, setPackageData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const stripeApiKey =
     'sk_test_51OwVCMP0vcGwtLuhGdutUMyH17TadjAIE0xOf7hXzCEMuH1t3RvcaSxN1C1vZYuT5nY0FvGQcXPGUryU265rFkR200OAwaU7cr';
   const customerId = 'cus_RbYg6e15XWd2CA';
+
+  useEffect(() => {
+    const fetchPackageData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const sessionToken = localStorage.getItem('sessionToken');
+        if (!sessionToken) {
+          throw new Error('No session token found');
+        }
+
+        const response = await fetch("https://devapi.mirlo.mx/api/v1/client/network-provider-line/offers?limit=999", {
+          headers: {
+            "Authorization": `Bearer ${sessionToken}`
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Unauthorized access. Please log in again.');
+          }
+          throw new Error('Failed to fetch package data');
+        }
+
+        const data = await response.json();
+        const selectedPackage = data.data.items.find((pkg: any) => pkg.id === packageId);
+        
+        if (!selectedPackage) {
+          throw new Error('Package not found');
+        }
+        
+        setPackageData({
+          ...selectedPackage,
+          data: 5,
+          days: 15,
+          minutes: 200,
+          sms: 100,
+          price: selectedPackage.mirloFinalPrice
+        });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Error loading package information';
+        setError(errorMessage);
+        console.error('Error fetching package data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPackageData();
+  }, [packageId]);
 
   useEffect(() => {
     const fetchPaymentMethods = async () => {
@@ -50,6 +102,7 @@ const Checkout: React.FC = () => {
         setPaymentMethods(methods);
       } catch (error) {
         console.error('Error fetching payment methods:', error);
+        setError('Error loading payment methods. Please try again.');
       }
     };
 
@@ -72,14 +125,6 @@ const Checkout: React.FC = () => {
     setSelectedCard('');
   };
 
-  const packageData = {
-    data: 5,
-    days: 15,
-    minutes: 200,
-    sms: 100,
-    price: 199,
-  };
-
   const handlePayment = async () => {
     if (!selectedCard) return;
     
@@ -93,11 +138,11 @@ const Checkout: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: 10000,
+          amount: packageData?.mirloFinalPrice * 100,
           type: 'nnat',
           user_email: 'mauroramiro19@gmail.com',
-          offer_altan: '1809904534',
-          phone: '+543735636388',
+          offer_altan: packageData?.altanOfferId,
+          phone: number,
           uuid: 'asdfasdfaaaaaa',
           customer: customerId,
           payment_method: selectedCard,
@@ -117,6 +162,16 @@ const Checkout: React.FC = () => {
       setIsProcessing(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="lg:ml-64 p-4 md:p-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lg:ml-64 p-4 md:p-8">
@@ -187,7 +242,7 @@ const Checkout: React.FC = () => {
 
             {showAddCard && (
               <div className="mt-6">
-                <AddCardForm onSuccess={handleAddCard} amount={packageData.price} />
+                <AddCardForm onSuccess={handleAddCard} amount={packageData?.price} />
               </div>
             )}
           </div>
@@ -200,37 +255,39 @@ const Checkout: React.FC = () => {
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium">Recarga de {packageData.data}GB</p>
+                  <p className="font-medium">{packageData?.name || 'Cargando...'}</p>
                   <p className="text-sm text-gray-600">Número: {number}</p>
                 </div>
-                <span className="font-medium">${packageData.price} MXN</span>
+                <span className="font-medium">${packageData?.mirloFinalPrice.toFixed(2)} MXN</span>
               </div>
 
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Datos</span>
-                  <span className="font-medium">{packageData.data}GB</span>
+              {packageData && (
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">Datos</span>
+                    <span className="font-medium">{packageData.data}GB</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">Minutos</span>
+                    <span className="font-medium">{packageData.minutes}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">SMS</span>
+                    <span className="font-medium">{packageData.sms}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Vigencia</span>
+                    <span className="font-medium">{packageData.days} días</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Minutos</span>
-                  <span className="font-medium">{packageData.minutes}</span>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">SMS</span>
-                  <span className="font-medium">{packageData.sms}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Vigencia</span>
-                  <span className="font-medium">{packageData.days} días</span>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-4">
                 <span className="font-medium">Total a pagar</span>
                 <span className="text-xl font-semibold">
-                  ${packageData.price} MXN
+                  ${packageData?.mirloFinalPrice.toFixed(2)} MXN
                 </span>
               </div>
 

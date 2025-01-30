@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 interface UserInfo {
@@ -15,13 +15,17 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | null>(null);
 
+// Cache para almacenar la última verificación exitosa
+const SESSION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
+let lastSuccessfulCheck = 0;
+
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const checkSession = async () => {
+  const checkSession = useCallback(async () => {
     const sessionToken = localStorage.getItem('sessionToken');
     const redirectUri = `${window.location.origin}/authorization`;
     const authUrl = `https://auth.mirlo.mx/authorize?response_type=code&client_id=6lpzjlshAuGFMGHySB2hIsqFarSEWKXc&redirect_uri=${encodeURIComponent(
@@ -36,44 +40,77 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // Verificar si necesitamos hacer una nueva petición
+    const now = Date.now();
+    if (userInfo && now - lastSuccessfulCheck < SESSION_CHECK_INTERVAL) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('https://auth.mirlo.mx/userinfo', {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${sessionToken}`,
+          'Authorization': `Bearer ${sessionToken}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
-        throw new Error('Invalid token');
+        // Si es un error de rate limit, mantener la sesión activa
+        if (response.status === 429) {
+          if (userInfo) {
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        const errorText = await response.text();
+        throw new Error(`Invalid token: ${response.status} - ${errorText}`);
       }
 
       const userData = await response.json();
+
+      if (!userData || typeof userData !== 'object') {
+        throw new Error('Invalid user data format');
+      }
+
       setUserInfo({
         name: userData.name || 'Usuario',
         email: userData.email || ''
       });
+      
+      // Actualizar timestamp de última verificación exitosa
+      lastSuccessfulCheck = now;
+      
       setIsLoading(false);
 
-      // If we're on the home page or authorization page and the token is valid,
-      // redirect to /lines
       if (location.pathname === '/' || location.pathname === '/authorization') {
         navigate('/lines');
       }
     } catch (error) {
-      console.error('Error checking session:', error);
-      localStorage.removeItem('sessionToken');
-      setUserInfo(null);
+      console.error('Error checking session:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error
+      });
+      
+      // Si hay un error que no sea de rate limit, limpiar el state
+      if (!(error instanceof Error && error.message.includes('429'))) {
+        setUserInfo(null);
+      }
+      
       setIsLoading(false);
+      
       if (!location.pathname.startsWith('/authorization')) {
         window.location.href = authUrl;
       }
     }
-  };
+  }, [location.pathname, navigate, userInfo]);
 
   useEffect(() => {
     checkSession();
-  }, [location.pathname]);
+  }, [checkSession]);
 
   if (isLoading) {
     return (
